@@ -130,3 +130,5 @@ dmypy.json
 
 # Misc
 data/
+*.csv
+*.ini
