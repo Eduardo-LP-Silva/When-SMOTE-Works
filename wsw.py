@@ -16,6 +16,7 @@ CONFIG_PATH = './config.ini'
 DATA_DIR_PATH = './data/'
 RESULTS_PATH = './results.csv'
 RESULTS_BACKUP_PATH = './results_backup.csv'
+MISSING_VALUES_THRESHOLD = 10
 SMOTE_VARIANTS = [SMOTE] # TODO Complete
 UPSAMPLE_RATIOS = [0.3, 0.6, 0.8, 1.0]
 RESULTS_COLS = ['DATASET', 'AUC-IMB', 'SMOTE-VARIANT', 'UPSAMPLE-RATIO', 'AUC-BLC'] #TODO Add metafeatures
@@ -48,9 +49,9 @@ def train_random_forest(x_train, y_train):
     return train(clf, x_train, y_train)
 
 def calc_minority_ratio(y):
-    minority_total = y.value_counts().min()
+    class_counts = y.value_counts() 
 
-    return minority_total / len(y)
+    return class_counts.min() / class_counts.max()
 
 def calc_mf(x, y):
     mfe = MFE(groups=['general', 'statistical', 'info-theory', 'clustering', 'complexity'], random_state=42)
@@ -58,19 +59,52 @@ def calc_mf(x, y):
     ft = mfe.extract()
     return ft
 
-def load_data(dataset_path):
-    data = pd.read_csv(dataset_path, header=None, index_col=False)
-    pred_attrs_len = len(data.columns) - 1
-    x = data[data.columns[:pred_attrs_len]]
-    y = data[data.columns[pred_attrs_len]]
-
+def multiclass_to_binary(y):
     classes = y.value_counts()
 
     if len(y.index) > 2:
         minority_class = classes.idxmin()
         y = y.transform(lambda x: 1 if x == minority_class else 0)
 
+    return y
+
+def replace_missing_vals(x):
+    try:
+        x = x.replace({'?': np.nan})
+    except:
+        pass
+    
+    if x.isna().values.any():
+        missing_val_cols = x.loc[:, x.isna().any()].columns
+
+        for col in missing_val_cols:
+            try:
+                x[col] = pd.to_numeric(x[col], downcast='float').values
+            except:
+                pass
+
+            missing_vals_no = x[col].isna().sum().sum()
+
+            if missing_vals_no > MISSING_VALUES_THRESHOLD: # Assume continuos attribute
+                x[col].fillna(x[col].mean(), inplace=True)
+            else:
+                x[col].fillna(x[col].value_counts().idxmax(), inplace=True)
+
+        x = x.convert_dtypes()
+
+    return x
+
+
+def load_data(dataset_path):
+    data = pd.read_csv(dataset_path, header=None, index_col=False)
+    pred_attrs_len = len(data.columns) - 1
+    x = data[data.columns[:pred_attrs_len]]
+    y = data[data.columns[pred_attrs_len]]
+
+    x = replace_missing_vals(x)
     x = pd.get_dummies(x)
+
+    y = multiclass_to_binary(y)
 
     return x,y
 
@@ -83,11 +117,11 @@ def run_experiment(results_writer, dataset_file_name, test_set_ratio=0.2):
     
         for i in range(len(SMOTE_VARIANTS)):
             minority_ratio = calc_minority_ratio(y_train)
-
+            
             for upsample_ratio in UPSAMPLE_RATIOS:
                 if minority_ratio < upsample_ratio:
                     smote_variant = SMOTE_VARIANTS[i](sampling_strategy=upsample_ratio, k_neighbors=3, random_state=42)
-                    x_train_upsampled, y_train_upsampled = smote_variant.fit_resample(x_train, y_train)
+                    x_train_upsampled, y_train_upsampled = smote_variant.fit_resample(x_train.values, y_train.values)
                     
                     clf = train_random_forest(x_train_upsampled, y_train_upsampled)
                     auc_smote = '{auc:.3f}'.format(auc=test(clf, x_test, y_test))
