@@ -2,14 +2,15 @@ import os
 import csv
 import argparse
 import traceback
+import warnings
 import pandas as pd
 import numpy as np
+import smote_variants as sv
 from shutil import copyfile
 from configparser import ConfigParser
 from sklearn.model_selection import train_test_split, RepeatedStratifiedKFold, cross_validate
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score
-from imblearn.over_sampling import SMOTE
 from pymfe.mfe import MFE
 
 CONFIG_PATH = './config.ini'
@@ -17,7 +18,7 @@ DATA_DIR_PATH = './data/'
 RESULTS_PATH = './results.csv'
 RESULTS_BACKUP_PATH = './results_backup.csv'
 MISSING_VALUES_THRESHOLD = 10
-SMOTE_VARIANTS = [SMOTE] # TODO Complete
+SMOTE_VARIANTS = [sv.SMOTE, sv.distance_SMOTE] # TODO Complete
 MIN_MINORITY_NO = 10
 UPSAMPLE_RATIOS = [0.3, 0.6, 0.8, 1.0]
 RESULTS_COLS = ['DATASET', 'SMOTE-VARIANT', 'UPSAMPLE-RATIO', 'AUC-IMB', 'AUC-BLC'] #TODO Add metafeatures
@@ -125,6 +126,7 @@ def load_data(dataset_path):
 
 def run_experiment(results_writer, dataset_file_name, test_set_ratio=0.2):
         x, y = load_data(os.path.join(DATA_DIR_PATH, dataset_file_name))
+        
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_set_ratio, stratify=y, random_state=42)
         mf = calc_mf(x_train.values, y_train.values)
         clf = train_random_forest(x_train, y_train)
@@ -137,7 +139,7 @@ def run_experiment(results_writer, dataset_file_name, test_set_ratio=0.2):
             for upsample_ratio in UPSAMPLE_RATIOS:
                 if minority_ratio < upsample_ratio:
                     print('---> %.1f Upsample Ratio' % upsample_ratio)
-                    smote_variant = SMOTE_VARIANTS[i](sampling_strategy=upsample_ratio, k_neighbors=3, random_state=42)
+                    smote_variant = SMOTE_VARIANTS[i](proportion=upsample_ratio, n_neighbors=3, random_state=42)
                     x_train_upsampled, y_train_upsampled = smote_variant.fit_resample(x_train.values, y_train.values)
                     
                     clf = train_random_forest(x_train_upsampled, y_train_upsampled)
