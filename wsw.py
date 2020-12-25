@@ -18,7 +18,14 @@ DATA_DIR_PATH = './data/'
 RESULTS_PATH = './results.csv'
 RESULTS_BACKUP_PATH = './results_backup.csv'
 MISSING_VALUES_THRESHOLD = 10
-SMOTE_VARIANTS = [sv.SMOTE, sv.distance_SMOTE] # TODO Complete
+SMOTE_VARIANTS = [sv.SMOTE , sv.SMOTE_TomekLinks , sv.SMOTE_ENN , sv.Borderline_SMOTE1 , sv.Borderline_SMOTE2 , sv.ADASYN , sv.AHC , sv.LLE_SMOTE , sv.distance_SMOTE , 
+    sv.SMMO , sv.polynom_fit_SMOTE , sv.Stefanowski , sv.ADOMS , sv.Safe_Level_SMOTE , sv.MSMOTE , sv.DE_oversampling , 
+    sv.SMOBD , sv.SUNDO , sv.MSYN , sv.SVM_balance , sv.TRIM_SMOTE , sv.SMOTE_RSB , sv.ProWSyn , sv.SL_graph_SMOTE , 
+    sv.NRSBoundary_SMOTE , sv.LVQ_SMOTE , sv.SOI_CJ , sv.ROSE , sv.SMOTE_OUT , sv.SMOTE_Cosine , sv.Selected_SMOTE , sv.LN_SMOTE , sv.MWMOTE , sv.PDFOS , sv.IPADE_ID , 
+    sv.RWO_sampling , sv.NEATER , sv.DEAGO , sv.Gazzah , sv.MCT , sv.ADG , sv.SMOTE_IPF , sv.KernelADASYN , sv.MOT2LD , sv.V_SYNTH , sv.OUPS , sv.SMOTE_D , sv.SMOTE_PSO , 
+    sv.CURE_SMOTE , sv.SOMO , sv.ISOMAP_Hybrid , sv.CE_SMOTE , sv.Edge_Det_SMOTE , sv.CBSO , sv.E_SMOTE , sv.DBSMOTE , sv.ASMOBD , sv.Assembled_SMOTE , sv.SDSMOTE , sv.DSMOTE , 
+    sv.G_SMOTE , sv.NT_SMOTE , sv.Lee , sv.SPY , sv.SMOTE_PSOBAT , sv.MDO , sv.Random_SMOTE , sv.ISMOTE , sv.VIS_RST , sv.GASMOTE , sv.A_SUWO , sv.SMOTE_FRST_2T , sv.AND_SMOTE , sv.NRAS , 
+    sv.AMSCO , sv.SSO , sv.NDO_sampling , sv.DSRBF , sv.Gaussian_SMOTE , sv.kmeans_SMOTE , sv.Supervised_SMOTE , sv.SN_SMOTE , sv.CCR , sv.ANS , sv.cluster_SMOTE] # TODO Complete
 MIN_MINORITY_NO = 10
 UPSAMPLE_RATIOS = [0.3, 0.6, 0.8, 1.0]
 RESULTS_COLS = ['DATASET', 'SMOTE-VARIANT', 'UPSAMPLE-RATIO', 'AUC-IMB', 'AUC-BLC'] #TODO Add metafeatures
