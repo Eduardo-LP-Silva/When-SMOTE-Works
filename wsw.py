@@ -26,10 +26,10 @@ SMOTE_VARIANTS = [sv.SMOTE , sv.SMOTE_TomekLinks , sv.SMOTE_ENN , sv.Borderline_
     sv.RWO_sampling , sv.NEATER , sv.DEAGO , sv.Gazzah , sv.MCT , sv.ADG , sv.SMOTE_IPF , sv.KernelADASYN , sv.MOT2LD , sv.V_SYNTH , sv.OUPS , sv.SMOTE_D , sv.SMOTE_PSO , 
     sv.CURE_SMOTE , sv.SOMO , sv.ISOMAP_Hybrid , sv.CE_SMOTE , sv.Edge_Det_SMOTE , sv.CBSO , sv.E_SMOTE , sv.DBSMOTE , sv.ASMOBD , sv.Assembled_SMOTE , sv.SDSMOTE , sv.DSMOTE , 
     sv.G_SMOTE , sv.NT_SMOTE , sv.Lee , sv.SPY , sv.SMOTE_PSOBAT , sv.MDO , sv.Random_SMOTE , sv.ISMOTE , sv.VIS_RST , sv.GASMOTE , sv.A_SUWO , sv.SMOTE_FRST_2T , sv.AND_SMOTE , sv.NRAS , 
-    sv.AMSCO , sv.SSO , sv.NDO_sampling , sv.DSRBF , sv.Gaussian_SMOTE , sv.kmeans_SMOTE , sv.Supervised_SMOTE , sv.SN_SMOTE , sv.CCR , sv.ANS , sv.cluster_SMOTE] # TODO Complete
+    sv.AMSCO , sv.SSO , sv.NDO_sampling , sv.DSRBF , sv.Gaussian_SMOTE , sv.kmeans_SMOTE , sv.Supervised_SMOTE , sv.SN_SMOTE , sv.CCR , sv.ANS , sv.cluster_SMOTE]
 MIN_MINORITY_NO = 10
 UPSAMPLE_RATIOS = [0.3, 0.6, 0.8, 1.0]
-RESULTS_COLS = ['DATASET', 'SMOTE-VARIANT', 'UPSAMPLE-RATIO', 'AUC-IMB', 'AUC-BLC'] #TODO Add metafeatures
+RESULTS_COLS = ['DATASET', 'SMOTE-VARIANT', 'UPSAMPLE-RATIO', 'AUC-IMB', 'AUC-BLC']
 
 # Returns a model's AUC
 def calc_auc(clf, x_test, y_test):
