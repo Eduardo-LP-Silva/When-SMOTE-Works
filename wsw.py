@@ -3,6 +3,7 @@ import csv
 import argparse
 import traceback
 import warnings
+from numpy.lib.function_base import append
 import pandas as pd
 import numpy as np
 import smote_variants as sv
@@ -37,7 +38,7 @@ def test(clf, x_test, y_test):
     
     return auc
 
-def train(clf, x, y, k=5):
+def train(clf, x, y, k=MIN_MINORITY_NO):
     cv = RepeatedStratifiedKFold(n_splits=k, n_repeats=3, random_state=42)
     scores = cross_validate(clf, x, y, scoring=['roc_auc'], cv=cv, n_jobs=-1)
 
@@ -58,7 +59,7 @@ def calc_minority_ratio(y):
 def calc_mf(x, y):
     mfe = MFE(groups=['general', 'statistical', 'info-theory', 'model-based', 'landmarking', 'clustering', 'concept', 
         'complexity'], random_state=42)
-    mfe.fit(x, y, suppress_warnings=True)
+    mfe.fit(x, y, verbose=0, suppress_warnings=True)
     ft = mfe.extract(suppress_warnings=True)
     #print("\n".join("{:50} {:30}".format(x, y) for x, y in zip(ft[0], ft[1])))
     return ft
@@ -84,7 +85,7 @@ def multiclass_to_binary(y):
 
     return y
 
-def replace_missing_vals(x):
+def replace_missing_vals(x, formated):
     try:
         x = x.replace({'?': np.nan})
     except:
@@ -94,30 +95,77 @@ def replace_missing_vals(x):
         missing_val_cols = x.loc[:, x.isna().any()].columns
 
         for col in missing_val_cols:
-            try:
-                x[col] = pd.to_numeric(x[col], downcast='float').values
-            except:
-                pass
+            if not formated:
+                missing_vals_no = x[col].isna().sum()
 
-            missing_vals_no = x[col].isna().sum().sum()
+                try:
+                    x[col] = pd.to_numeric(x[col], downcast='float').values
+                except:
+                    pass
 
-            if missing_vals_no > MISSING_VALUES_THRESHOLD: # Assume continuos attribute
-                x[col].fillna(x[col].mean(), inplace=True)
+                if missing_vals_no > MISSING_VALUES_THRESHOLD: # Assume continuous attribute
+                    x[col].fillna(x[col].mean(), inplace=True)
+                else:
+                    x[col].fillna(x[col].value_counts().idxmax(), inplace=True)
             else:
-                x[col].fillna(x[col].value_counts().idxmax(), inplace=True)
+                if x[col].dtype == 'category':
+                    x[col].fillna(x[col].value_counts().idxmax(), inplace=True)
+                else:
+                    x[col].fillna(x[col].mean(), inplace=True)
 
-        x = x.convert_dtypes()
+        if not formated:
+            x = x.convert_dtypes()
 
     return x
 
+def parse_dat_file(dataset_path):
+    dataset_file = open(dataset_path, 'r')
+    line = dataset_file.readline()
+
+    if not line.startswith('@relation'):
+        print('Unknown .dat annotation %s in %s dataset' % (line, dataset_path))
+        return None, None
+
+    attr_types = {}
+    skip_rows = 1
+    
+    while True:
+        line = dataset_file.readline()
+        skip_rows = skip_rows + 1
+
+        if line.startswith('@attribute'):
+            line_split = line.split(' ')
+
+            if line_split[2].startswith('{'):
+                attr_types[skip_rows - 2] = 'category'
+            elif line_split[2] == 'real':
+                attr_types[skip_rows - 2] = 'float64'
+            elif line_split[2] == 'integer':
+                attr_types[skip_rows - 2] = 'int64'
+            else:
+                print('Unknown .dat attribute type %s in %s dataset' % (line_split[2], dataset_path))
+                attr_types[skip_rows - 2] = 'object'
+
+        elif line.startswith('@data'):
+            return attr_types, skip_rows
+        else:
+            print('Unknown .dat annotation %s in %s dataset' % (line, dataset_path))
 
 def load_data(dataset_path):
-    data = pd.read_csv(dataset_path, header=None, index_col=False)
+    attr_types = None
+    skip_rows = None
+    formated = False
+
+    if dataset_path[-4:] == '.dat':
+        attr_types, skip_rows = parse_dat_file(dataset_path)
+        formated = True
+        
+    data = pd.read_csv(dataset_path, header=None, index_col=False, skiprows=skip_rows, dtype=attr_types)
     pred_attrs_len = len(data.columns) - 1
     x = data[data.columns[:pred_attrs_len]]
     y = data[data.columns[pred_attrs_len]]
 
-    x = replace_missing_vals(x)
+    x = replace_missing_vals(x, formated)
     x = pd.get_dummies(x)
 
     y = multiclass_to_binary(y)
@@ -128,7 +176,7 @@ def run_experiment(results_writer, dataset_file_name, test_set_ratio=0.2):
         x, y = load_data(os.path.join(DATA_DIR_PATH, dataset_file_name))
         
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_set_ratio, stratify=y, random_state=42)
-        mf = calc_mf(x_train.values, y_train.values)
+        mf = calc_mf(x_train.values, np.array(y_train.values))
         clf = train_random_forest(x_train, y_train)
         auc_imb = '{auc:.3f}'.format(auc=test(clf, x_test, y_test))
     
@@ -146,7 +194,7 @@ def run_experiment(results_writer, dataset_file_name, test_set_ratio=0.2):
                     auc_smote = '{auc:.3f}'.format(auc=test(clf, x_test, y_test))
                     mf_smote = calc_mf(x_train_upsampled, y_train_upsampled)
                     original_mf = mf[1].copy()
-                    
+
                     for j in range(len(mf_smote[1])):
                         original_mf[j] = '%.3f|%.3f' % (float(mf[1][j]), float(mf_smote[1][j]))
 
