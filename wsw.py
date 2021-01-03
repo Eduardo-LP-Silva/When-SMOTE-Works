@@ -2,7 +2,6 @@ import os
 import csv
 import argparse
 import traceback
-import warnings
 from numpy.lib.function_base import append
 import pandas as pd
 import numpy as np
@@ -19,16 +18,14 @@ DATA_DIR_PATH = './data/'
 RESULTS_PATH = './results.csv'
 RESULTS_BACKUP_PATH = './results_backup.csv'
 MISSING_VALUES_THRESHOLD = 10
-SMOTE_VARIANTS = [sv.SMOTE , sv.SMOTE_TomekLinks , sv.SMOTE_ENN , sv.Borderline_SMOTE1 , sv.Borderline_SMOTE2 , sv.ADASYN , sv.AHC , sv.LLE_SMOTE , sv.distance_SMOTE , 
-    sv.SMMO , sv.polynom_fit_SMOTE , sv.Stefanowski , sv.ADOMS , sv.Safe_Level_SMOTE , sv.MSMOTE , sv.DE_oversampling , 
-    sv.SMOBD , sv.SUNDO , sv.MSYN , sv.SVM_balance , sv.TRIM_SMOTE , sv.SMOTE_RSB , sv.ProWSyn , sv.SL_graph_SMOTE , 
-    sv.NRSBoundary_SMOTE , sv.LVQ_SMOTE , sv.SOI_CJ , sv.ROSE , sv.SMOTE_OUT , sv.SMOTE_Cosine , sv.Selected_SMOTE , sv.LN_SMOTE , sv.MWMOTE , sv.PDFOS , sv.IPADE_ID , 
-    sv.RWO_sampling , sv.NEATER , sv.DEAGO , sv.Gazzah , sv.MCT , sv.ADG , sv.SMOTE_IPF , sv.KernelADASYN , sv.MOT2LD , sv.V_SYNTH , sv.OUPS , sv.SMOTE_D , sv.SMOTE_PSO , 
-    sv.CURE_SMOTE , sv.SOMO , sv.ISOMAP_Hybrid , sv.CE_SMOTE , sv.Edge_Det_SMOTE , sv.CBSO , sv.E_SMOTE , sv.DBSMOTE , sv.ASMOBD , sv.Assembled_SMOTE , sv.SDSMOTE , sv.DSMOTE , 
-    sv.G_SMOTE , sv.NT_SMOTE , sv.Lee , sv.SPY , sv.SMOTE_PSOBAT , sv.MDO , sv.Random_SMOTE , sv.ISMOTE , sv.VIS_RST , sv.GASMOTE , sv.A_SUWO , sv.SMOTE_FRST_2T , sv.AND_SMOTE , sv.NRAS , 
-    sv.AMSCO , sv.SSO , sv.NDO_sampling , sv.DSRBF , sv.Gaussian_SMOTE , sv.kmeans_SMOTE , sv.Supervised_SMOTE , sv.SN_SMOTE , sv.CCR , sv.ANS , sv.cluster_SMOTE]
+SMOTE_VARIANTS = [sv.SMOTE, sv.SMOTE_TomekLinks, sv.SMOTE_ENN, sv.Borderline_SMOTE1, sv.Borderline_SMOTE2, 
+sv.LLE_SMOTE, sv.distance_SMOTE, sv.SMMO, sv.ADOMS, sv.Safe_Level_SMOTE, sv.MSMOTE, sv.DE_oversampling, 
+sv.SVM_balance, sv.TRIM_SMOTE, sv.SMOTE_RSB, sv.ProWSyn, sv.SL_graph_SMOTE, sv.NRSBoundary_SMOTE, sv.SOI_CJ, 
+sv.SMOTE_OUT, sv.SMOTE_Cosine, sv.Selected_SMOTE, sv.SMOTE_IPF, sv.SDSMOTE, sv.DSMOTE, sv.G_SMOTE, sv.Random_SMOTE, 
+sv.VIS_RST, sv.NRAS, sv.SSO, sv.NDO_sampling, sv.Gaussian_SMOTE, sv.kmeans_SMOTE, sv.SN_SMOTE, sv.cluster_SMOTE]
+
 MIN_MINORITY_NO = 10
-UPSAMPLE_RATIOS = [0.3, 0.6, 0.8, 1.0]
+UPSAMPLE_RATIOS = [0.5, 0.8, 1.0]
 RESULTS_COLS = ['DATASET', 'SMOTE-VARIANT', 'UPSAMPLE-RATIO', 'AUC-IMB', 'AUC-BLC']
 
 # Returns a model's AUC
@@ -179,7 +176,7 @@ def load_data(dataset_path):
 
     return x,y
 
-def run_experiment(results_writer, dataset_file_name, test_set_ratio=0.2):
+def run_experiment(results_file, results_writer, dataset_file_name, test_set_ratio=0.2):
         x, y = load_data(os.path.join(DATA_DIR_PATH, dataset_file_name))
         
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_set_ratio, stratify=y, random_state=42)
@@ -188,27 +185,35 @@ def run_experiment(results_writer, dataset_file_name, test_set_ratio=0.2):
         auc_imb = '{auc:.3f}'.format(auc=test(clf, x_test, y_test))
     
         for i in range(len(SMOTE_VARIANTS)):
-            print('--> Applying %s' % SMOTE_VARIANTS[i].__name__)
-            minority_ratio = calc_minority_ratio(y_train)
+            try:
+                print('\n\n--> Applying %s' % SMOTE_VARIANTS[i].__name__)
+                minority_ratio = calc_minority_ratio(y_train)
+            except:
+                traceback.print_exc()
+                continue
             
             for upsample_ratio in UPSAMPLE_RATIOS:
                 if minority_ratio < upsample_ratio:
-                    print('---> %.1f Upsample Ratio' % upsample_ratio)
-                    smote_variant = SMOTE_VARIANTS[i](proportion=upsample_ratio, n_neighbors=3, random_state=42)
-                    x_train_upsampled, y_train_upsampled = smote_variant.fit_resample(x_train.values, y_train.values)
-                    
-                    clf = train_random_forest(x_train_upsampled, y_train_upsampled)
-                    auc_smote = '{auc:.3f}'.format(auc=test(clf, x_test, y_test))
-                    mf_smote = calc_mf(x_train_upsampled, y_train_upsampled)
-                    original_mf = mf[1].copy()
+                    try:
+                        print('\n---> %.1f Upsample Ratio' % upsample_ratio)
+                        smote_variant = SMOTE_VARIANTS[i](proportion=upsample_ratio, n_neighbors=3, random_state=42)
+                        x_train_upsampled, y_train_upsampled = smote_variant.fit_resample(x_train.values, y_train.values)
+                        
+                        clf = train_random_forest(x_train_upsampled, y_train_upsampled)
+                        auc_smote = '{auc:.3f}'.format(auc=test(clf, x_test, y_test))
+                        mf_smote = calc_mf(x_train_upsampled, np.array(y_train_upsampled))
+                        original_mf = mf[1].copy()
 
-                    for j in range(len(mf_smote[1])):
-                        original_mf[j] = '%.3f|%.3f' % (float(mf[1][j]), float(mf_smote[1][j]))
+                        for j in range(len(mf_smote[1])):
+                            original_mf[j] = '%.3f|%.3f' % (float(mf[1][j]), float(mf_smote[1][j]))
 
-                    results_row = [dataset_file_name, SMOTE_VARIANTS[i].__name__, upsample_ratio, auc_imb, auc_smote]
-                    results_row = results_row + original_mf
+                        results_row = [dataset_file_name, SMOTE_VARIANTS[i].__name__, upsample_ratio, auc_imb, auc_smote]
+                        results_row = results_row + original_mf
 
-                    results_writer.writerow(results_row)
+                        results_writer.writerow(results_row)
+                        results_file.flush()
+                    except:
+                        traceback.print_exc()
 
 def main():
     config = ConfigParser()
@@ -222,7 +227,9 @@ def main():
     if args.clear:
         open_mode = 'w'
         copyfile(RESULTS_PATH, RESULTS_BACKUP_PATH)
-        config.remove_option('main', 'files_read')
+
+        if config.has_option('main', 'files_read'):
+            config.remove_option('main', 'files_read')
 
     files_read = []
 
@@ -253,8 +260,8 @@ def main():
             files_read.append(dataset_file_name)
 
             try:
-                print('-> Processing %s dataset' % dataset_file_name)
-                run_experiment(results_writer, dataset_file_name)
+                print('\n\n\n-> Processing %s dataset' % dataset_file_name)
+                run_experiment(results_file, results_writer, dataset_file_name)
             except:
                 traceback.print_exc()
 
