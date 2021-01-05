@@ -32,18 +32,23 @@ def calc_result_metrics(results, datasets):
 
             dataset_difficulties.append(statistics.mean(dif_mfs_values))
 
-            mfs_diff_avgs = []
+            mfs_diffs = []
 
             for i in range(5, len(results.columns)):
                 mfs_col_diffs = []
 
-                for _, value in  results[results.columns[i]].iteritems():
+                for _, value in  dataset_results[dataset_results.columns[i]].iteritems():
                     mf_values = value.split('|')
                     mfs_col_diffs.append(float(mf_values[1]) - float(mf_values[0]))
 
-                mfs_diff_avgs.append(mfs_col_diffs)
+                mfs_diffs.append(mfs_col_diffs)
 
-            dataset_mf_variabilities.append(mfs_diff_avgs)
+            mfs_avgs = []
+
+            for mf_diff_list in mfs_diffs:
+                mfs_avgs.append(statistics.mean(mf_diff_list))
+
+            dataset_mf_variabilities.append(mfs_avgs)
             dataset_imb_ratios.append(float(dataset_results.iloc[0]['c2'].split('|')[0]))
 
     '''
@@ -87,7 +92,7 @@ def plot_avg_auc_dif(results, upsample_ratio):
 
         if avg_diff > 0:
             auc_increased[dataset] = avg_diff
-        elif avg_diff <= 0: # Exclude avg = 0
+        elif avg_diff <= 0:
             auc_decreased[dataset] = avg_diff
 
         for i in range(len(diffs)):
@@ -102,7 +107,8 @@ def plot_avg_auc_dif(results, upsample_ratio):
         avg_diffs.append(avg_diff)
         stdev_diffs.append(stdev)
 
-    #print(odd_cases)
+    print('\n-- Odd Cases --\n')
+    print(odd_cases)
 
     title = 'Average AUC Difference (%d%% Minority-Majority Ratio)' % (upsample_ratio * 100)
     ax.bar(datasets, avg_diffs, bar_width, yerr=stdev_diffs)
@@ -133,6 +139,50 @@ def plot_avg_auc_dif(results, upsample_ratio):
         'AUC-Difficulty (%d%% Minority-Majority Ratio)' % (upsample_ratio * 100))
     plot_scatter(metrics_df, 'Imbalance Ratio', 'Average AUC Difference', 'Classification Improvement',
         'AUC-IMBR (%d%% Minority-Majority Ratio)' % (upsample_ratio * 100))
+
+    avg_metrics_i = [int(statistics.mean(size_i)), int(statistics.mean(attr_no_i)), round(statistics.mean(diff_i), 2), round(statistics.mean(imb_r_i), 2)]
+    avg_metrics_d = [int(statistics.mean(size_d)), int(statistics.mean(attr_no_d)), round(statistics.mean(diff_d), 2), round(statistics.mean(imb_r_d), 2)]
+    avg_metrics_all = [int(metrics_df['Dataset Size'].mean()), int(metrics_df['Attributes'].mean()), 
+        round(metrics_df['Average Classification Landmark'].mean(), 2), round(metrics_df['Imbalance Ratio'].mean(), 2)]
+    avg_metrics_df = pd.DataFrame(data={'Average Value (CI)': avg_metrics_i, 'Average Value (CD)': avg_metrics_d,
+        'Average Value (All)': avg_metrics_all}, index=['Dataset Size', 'Attributes', 'Average Classification Landmark',
+        'Imbalance Ratio'])
+    avg_metrics_df.to_csv('./Average Metrics (%d%% Minority-Majority Ratio).csv' % (upsample_ratio * 100))
+    calc_metafeatures_avgs(mf_var_i, mf_var_d, upsample_results.columns[5:], upsample_ratio)
+
+def calc_metafeatures_avgs(mf_i, mf_d, names, upsample_ratio):
+    rows = []
+
+    mf_i_df = pd.DataFrame(data=mf_i, columns=names)
+    mf_d_df = pd.DataFrame(data=mf_d, columns=names)
+    mf_all_df = mf_i_df.append(mf_d_df)
+
+    for row_name in names:
+        rows.append([round(mf_i_df[row_name].mean(), 2), round(mf_d_df[row_name].mean(), 2), round(mf_all_df[row_name].mean(), 2)])
+
+    mf_avg_df = pd.DataFrame(rows, 
+        columns=['Average Difference (CI)', 'Average Difference (CD)', 'Average Difference (All)'],
+        index=names)
+    mf_avg_df.to_csv('./Average Metafeature Difference (%d%% Minority-Majority Ratio).csv' % (upsample_ratio * 100))
+
+    '''
+    for i in range(len(mf_i)) and range(len(mf_d)):
+        rows.append([round(statistics.mean(mf_i[i]), 2), round(statistics.mean(mf_d[i]), 2), 
+            round(statistics.mean(mf_i[i] + mf_d[i]), 2)])
+
+    mf_avg_df = pd.DataFrame(rows, 
+        columns=['Average Difference (CI)', 'Average Difference (CD)', 'Average Difference (All)'],
+        index=names)
+
+    mf_avg_df.to_csv('./Average Metafeature Difference (%d%% Minority-Majority Ratio).csv' % (upsample_ratio * 100))
+    '''
+    '''
+    mf_i_df = pd.DataFrame(data=mf_i, columns=names)
+    mf_d_df = pd.DataFrame(data=mf_d, columns=names)
+
+    #print(mf_i)
+    print(mf_i_df)
+    '''
 
 def plot_scatter(data, x, y, hue, title):
     axes = sns.scatterplot(data=data, x=x, y=y,
