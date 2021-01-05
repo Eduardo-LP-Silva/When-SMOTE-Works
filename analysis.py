@@ -9,13 +9,14 @@ def plot_avg_auc_dif(results, upsample_ratio):
     upsample_results = results[results['UPSAMPLE-RATIO'] == upsample_ratio]
     datasets = sorted(upsample_results['DATASET'].value_counts().index)
 
-    bar_positions = np.arange(len(datasets))
     bar_width = 0.75
-
     _, ax = plt.subplots(figsize=(20, 5))
 
     avg_diffs = []
     stdev_diffs = []
+    auc_increased = [] # Calculate metrics
+    auc_decreased = [] # Calculate metrics
+    odd_cases = {}
 
     for dataset in datasets:
         smote_variant_rows = upsample_results[upsample_results['DATASET'] == dataset]
@@ -25,8 +26,27 @@ def plot_avg_auc_dif(results, upsample_ratio):
         for _, row in smote_variant_rows.iterrows():
             diffs.append(row['AUC-BLC'] - auc_imb)
 
-        avg_diffs.append(round(statistics.mean(diffs), 2))
-        stdev_diffs.append(round(statistics.stdev(diffs), 2))
+        avg_diff = round(statistics.mean(diffs), 2)
+        stdev = round(statistics.stdev(diffs), 2)
+
+        if avg_diff > 0:
+            auc_increased.append(dataset)
+        elif avg_diff < 0: # Exclude avg = 0
+            auc_decreased.append(dataset)
+
+        for i in range(len(diffs)):
+            if diffs[i] * avg_diff < 0 and abs(diffs[i]) > 0.05: # Opposite signs
+                smote_variant = smote_variant_rows.iloc[i]['SMOTE-VARIANT']
+
+                if smote_variant in odd_cases.keys():
+                    odd_cases[smote_variant].append(dataset)
+                else:
+                    odd_cases[smote_variant] = [dataset]
+
+        avg_diffs.append(avg_diff)
+        stdev_diffs.append(stdev)
+
+    print(odd_cases)
 
     title = 'Average AUC Difference (%d%% Minority-Majority Ratio)' % (upsample_ratio * 100)
     ax.bar(datasets, avg_diffs, bar_width, yerr=stdev_diffs)
@@ -41,6 +61,8 @@ def plot_avg_auc_dif(results, upsample_ratio):
 
 def main():
     results = pd.read_csv('./results.csv', header=0, index_col=False)
+    plot_avg_auc_dif(results, 0.5)
+    plot_avg_auc_dif(results, 0.8)
     plot_avg_auc_dif(results, 1.0)
 
 ''' 
